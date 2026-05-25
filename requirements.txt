@@ -1,0 +1,36 @@
+# --- Web layer ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.6
+python-dotenv>=1.0
+
+# --- Data layer ---
+sqlalchemy>=2.0
+# Use psycopg2-binary for Postgres. SQLite works out of the box for dev.
+psycopg2-binary>=2.9
+pydantic>=2.5
+pydantic-settings>=2.1
+
+# --- Ingestion / image ---
+pymupdf>=1.23
+pillow>=10.0
+numpy>=1.24
+opencv-python-headless>=4.9
+
+# --- LLM stack (agentic) ---
+anthropic>=0.40
+langchain>=0.3
+langchain-anthropic>=0.2
+langchain-google-genai>=2.0
+google-generativeai>=0.8
+langgraph>=0.2
+
+# --- Plagiarism / embeddings ---
+sentence-transformers>=2.5
+scikit-learn>=1.4
+
+# --- Optional: Qwen-VL via HuggingFace (requires GPU) ---
+# Uncomment to enable the qwen_vl adapter. Demo runs without these.
+# transformers>=4.45
+# torch>=2.2
+# accelerate>=0.30

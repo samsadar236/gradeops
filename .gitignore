@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+*.sqlite
+
+# Env
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Storage (user data — keep out of source control)
+storage/pdfs/*
+storage/pages/*
+storage/crops/*
+!storage/pdfs/.gitkeep
+!storage/pages/.gitkeep
+!storage/crops/.gitkeep
+
+# IDE
+.vscode/
