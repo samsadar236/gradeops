@@ -7,7 +7,7 @@ sdk: docker
 pinned: false
 ---
 
-# GradeOps 🎓
+# GradeOps 
 
 > **Human-in-the-Loop AI grading pipeline for handwritten exams**
 
@@ -65,15 +65,15 @@ Extractor → Scorer → Justifier → Critic
 
 ## Features
 
-- **Bulk PDF Upload** — Professors upload entire exam batches at once
-- **Rubric Builder** — Define criteria with conditions, alternatives, and do-not-deduct rules
-- **AI Grading** — Partial credit with structured justifications per question
-- **Plagiarism Detection** — Cosine similarity over OCR transcripts using sentence-transformers
-- **Review Dashboard** — Side-by-side view of student answer + AI grade with keyboard shortcuts (`Enter / O / F / J / K`)
-- **Sorted by Uncertainty** — High-variance AI grades surface first for TA review
-- **Audit Log** — Every decision stamped with rubric version, prompt version, and model version
-- **Anonymization** — Top strip of each answer crop is masked before any external API call
-- **RBAC** — Instructor and TA roles tracked in DB with reviewer attribution
+- **Bulk PDF Upload** : Professors upload entire exam batches at once
+- **Rubric Builder** : Define criteria with conditions, alternatives, and do-not-deduct rules
+- **AI Grading** : Partial credit with structured justifications per question
+- **Plagiarism Detection** : Cosine similarity over OCR transcripts using sentence-transformers
+- **Review Dashboard** : Side-by-side view of student answer + AI grade with keyboard shortcuts (`Enter / O / F / J / K`)
+- **Sorted by Uncertainty** : High-variance AI grades surface first for TA review
+- **Audit Log** : Every decision stamped with rubric version, prompt version, and model version
+- **Anonymization** : Top strip of each answer crop is masked before any external API call
+- **RBAC** : Instructor and TA roles tracked in DB with reviewer attribution
 
 ---
 
@@ -181,41 +181,14 @@ gradeops/
 
 ## Deployment (Hugging Face Spaces)
 
-The app runs as a single Docker container on HF Spaces:
-- **16 GB RAM, 2 vCPU** — handles sentence-transformers without OOM
-- **No request timeout** — 60-second grading calls complete (Render free has a 30s cap)
-- FastAPI serves the built React frontend — single URL, no CORS issues
-- `GOOGLE_API_KEY` stored as an encrypted secret; never in code
 
 **Live at:** https://samruddhisadar-gradeops.hf.space  
 *(Sleeps after 48h inactivity — ~30s cold start on first request)*
 
----
 
-## Known Limitations & Roadmap
 
-| Area | Current State | To Productionize |
-|------|--------------|-----------------|
-| RBAC | Modeled, not enforced | Add `Depends(require_role(...))` on routes |
-| Storage | Local `storage/` folder | Swap to S3 via boto3 (~15 lines) |
-| OCR | Hosted vision LLM | Switch to `OCR_BACKEND=qwen_vl` on GPU host |
-| Concurrency | Synchronous on upload | Move to `BackgroundTasks` or Celery |
-| Multi-pass | 1 pass (rate-limited) | Raise to 5 on paid tier |
 
----
 
-## Brief Compliance
-
-| Requirement | Status |
-|-------------|--------|
-| Bulk PDF upload + rubric builder | ✅ |
-| RBAC (Instructors vs TAs) | ⚠️ Modeled, not enforced |
-| OCR / Vision models | ⚠️ Hosted default; Qwen-VL stub present |
-| Cloud storage | ⚠️ Local FS (abstracted, easy swap) |
-| Agentic partial credit grading | ✅ |
-| Structured justifications | ✅ |
-| Plagiarism flagging | ✅ |
-| Review dashboard + keyboard shortcuts | ✅ |
 
 ---
 
