@@ -10,7 +10,7 @@ pinned: false
 # GradeOps 🎓
 
 > **Human-in-the-Loop AI grading pipeline for handwritten exams**
-> Built at IIT Guwahati | Mentor: Abhinav Rai
+
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-HuggingFace%20Spaces-blue)](https://samruddhisadar-gradeops.hf.space)
 [![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Langgraph-indigo)]()
