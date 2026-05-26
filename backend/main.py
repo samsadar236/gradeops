@@ -488,3 +488,27 @@ def get_stats(db: Session = Depends(get_db)):
         "mean_override_delta": float(mean_delta),
         "plagiarism_pairs": db.query(PlagiarismFlag).count(),
     }
+
+# ---------------------------------------------------------------------------
+# Serve the built React frontend (production only)
+# ---------------------------------------------------------------------------
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if _FRONTEND_DIST.is_dir():
+    # /assets/* serves built JS/CSS bundles
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(_FRONTEND_DIST / "assets")),
+        name="assets",
+    )
+
+    # Everything else falls back to index.html (SPA routing)
+    @app.get("/{full_path:path}")
+    def _spa_fallback(full_path: str):
+        candidate = _FRONTEND_DIST / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_FRONTEND_DIST / "index.html")

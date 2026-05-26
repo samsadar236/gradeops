@@ -1,8 +1,8 @@
 import axios from 'axios'
 
 const client = axios.create({
-  baseURL: '/api',
-  timeout: 600_000, // 10 min — grading is slow on first run
+  baseURL: import.meta.env.DEV ? '/api' : '',
+  timeout: 600_000,
 })
 
 export const api = {

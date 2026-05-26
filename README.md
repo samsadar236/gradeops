@@ -1,223 +1,222 @@
-# GradeOps
+---
+title: gradeops
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
 
-> Human-in-the-loop grading pipeline for handwritten exams.
+# GradeOps 🎓
 
-GradeOps lets an instructor upload scanned answer sheets and grading rubrics, automatically transcribes each handwritten answer, runs it through a multi-step LLM grader that awards partial credit with citations, and surfaces every AI-proposed grade on a high-throughput review dashboard where teaching assistants approve, override, or flag with keyboard shortcuts.
+> **Human-in-the-Loop AI grading pipeline for handwritten exams**
+> Built at IIT Guwahati | Mentor: Abhinav Rai
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-HuggingFace%20Spaces-blue)](https://samruddhisadar-gradeops.hf.space)
+[![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Langgraph-indigo)]()
+[![DB](https://img.shields.io/badge/DB-SQLite%20%2F%20PostgreSQL-green)]()
 
 ---
 
-## Stack
+## What is GradeOps?
 
-| Layer | Tech |
-|---|---|
-| Frontend | React 18, Vite, Tailwind, Inter typography |
-| Backend | FastAPI, SQLAlchemy |
-| Database | SQLite (default) or Postgres |
-| Agentic grader | Langchain + Langgraph (Extractor → Scorer → Justifier → Critic) |
-| OCR / Vision | Gemini (free tier) or Claude vision via a swappable adapter; Qwen-VL adapter stub for HuggingFace use |
-| Plagiarism | sentence-transformers cosine similarity |
-| Storage | Local `storage/` folder behind a path abstraction (drop-in for S3) |
+Grading handwritten exams is slow, inconsistent, and prone to bias. GradeOps solves this by combining **Vision-Language Models** and **Agentic LLMs** into a pipeline that:
+
+1. Reads scanned exam PDFs and extracts handwritten answers using AI vision
+2. Grades them automatically against instructor-defined rubrics (with partial credit)
+3. Pushes the AI-proposed grades to a review dashboard where TAs approve or override — keeping humans in the loop
 
 ---
 
-## Quick start
+## Architecture Overview
 
-### 1. Clone, create a venv, install dependencies
+```
+React 18 + Vite + Tailwind (Frontend)
+        │
+        ▼
+FastAPI (Backend — also serves frontend in production)
+        │
+   ┌────┴──────────────────────────────────────┐
+   ▼          ▼             ▼           ▼       ▼
+Ingestion   OCR         Agentic      Plagiarism  Audit
+(PyMuPDF)  (Gemini      Grader       (sentence-  (versioned
+            Vision via  (Langgraph   transformers decision log)
+            Langchain)  4-node)      cosine)
+                │
+                ▼
+        SQLAlchemy → SQLite (dev) / PostgreSQL (prod)
+```
+
+### The 4-Node Langgraph Grading Pipeline
+
+```
+Extractor → Scorer → Justifier → Critic
+                         ↑____________| (retry loop if points aren't traceable to claims)
+```
+
+| Node | What it does |
+|------|-------------|
+| **Extractor** | Reads OCR transcript, pulls out answer claims |
+| **Scorer** | Awards partial credit per rubric criterion |
+| **Justifier** | Writes a 2–3 sentence rationale citing specific claims |
+| **Critic** | Self-audits: every point must be traceable back to a claim |
+
+---
+
+## Features
+
+- **Bulk PDF Upload** — Professors upload entire exam batches at once
+- **Rubric Builder** — Define criteria with conditions, alternatives, and do-not-deduct rules
+- **AI Grading** — Partial credit with structured justifications per question
+- **Plagiarism Detection** — Cosine similarity over OCR transcripts using sentence-transformers
+- **Review Dashboard** — Side-by-side view of student answer + AI grade with keyboard shortcuts (`Enter / O / F / J / K`)
+- **Sorted by Uncertainty** — High-variance AI grades surface first for TA review
+- **Audit Log** — Every decision stamped with rubric version, prompt version, and model version
+- **Anonymization** — Top strip of each answer crop is masked before any external API call
+- **RBAC** — Instructor and TA roles tracked in DB with reviewer attribution
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, Tailwind CSS |
+| Backend | FastAPI, Python |
+| Agentic AI | Langgraph, Langchain |
+| LLM (default) | Gemini 2.5 Flash Lite (provider-agnostic — swap to Claude with one env var) |
+| OCR | Gemini Vision (hosted) / Qwen-VL (GPU, HuggingFace) |
+| Plagiarism | `sentence-transformers/all-MiniLM-L6-v2` |
+| PDF Ingestion | PyMuPDF |
+| Database | SQLAlchemy + SQLite (dev) / PostgreSQL (prod) |
+| Deployment | Hugging Face Spaces (Docker) |
+
+---
+
+## Quick Start
 
 ```bash
+# 1. Clone and set up
+git clone <your-repo-url>
 cd gradeops
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS / Linux:
-source .venv/bin/activate
-
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-### 2. Configure environment
-
-```bash
+# 2. Configure
 cp .env.example .env
-```
+# Open .env and set GOOGLE_API_KEY at minimum
 
-Open `.env` and set at minimum:
-
-```
-GOOGLE_API_KEY=AIzaSy...
-```
-
-Get a free Gemini API key at <https://aistudio.google.com/app/apikey> — no billing required.
-
-### 3. Initialize the database
-
-```bash
+# 3. Initialize database and seed demo data
 python scripts/init_db.py
-python scripts/seed_demo.py   # optional: pre-load a sample exam + rubric
-```
+python scripts/seed_demo.py
 
-### 4. Run the backend
-
-```bash
+# 4. Run backend
 uvicorn backend.main:app --reload --port 8000
-```
 
-API docs at <http://localhost:8000/docs>.
+# 5. Run frontend (separate terminal)
+cd frontend && npm install && npm run dev
 
-### 5. Run the frontend (new terminal)
+# CLI demo (no UI needed)
+python scripts/run_demo.py path/to/answer.jpg
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open <http://localhost:5173>.
-
-### 6. Optional CLI demo
-
-For a no-UI walkthrough on one image:
-
-```bash
-python scripts/run_demo.py path/to/handwritten_answer.jpg
+# Diagnose environment / LLM chain issues
+python debug_llm.py
 ```
 
 ---
 
-## How the grader works
+## Environment Variables
 
-The grader is a 4-node agentic state machine compiled with Langgraph:
-
+```env
+LLM_PROVIDER=google
+GOOGLE_API_KEY=AIzaSy...
+GRADER_MODEL_GOOGLE=gemini-2.5-flash-lite
+GRADER_NUM_PASSES=1          # Bump to 5 on paid tier
+GRADER_CRITIC_RETRY=0        # Set to 1 to enable self-audit retry
+LLM_MIN_GAP_SECONDS=4.5      # Set 0 for paid tiers
+OCR_BACKEND=hosted            # 'qwen_vl' for GPU production
+DATABASE_URL=sqlite:///./gradeops.db
+STORAGE_ROOT=./storage
+PLAGIARISM_THRESHOLD=0.82
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
-                ┌────────────────────────────────────────────┐
-                │                                            │
-   image ─► Extractor ─► Scorer ─► Justifier ─► Critic ─┐    │
-                            ▲                           │    │
-                            │                           │    │
-                            └─── retry with feedback ───┘    │
-                                                             │
-                                  END ◄─── pass ─────────────┘
-```
-
-- **Extractor** sees the image. Transcribes the handwriting literally and breaks it into atomic claim-steps. Never scores.
-- **Scorer** sees only the extracted claims (not the image). Maps them to rubric criteria and awards points. The image-blindness is deliberate — it is the structural defense against the grader awarding credit for things it imagines rather than what is on the page.
-- **Justifier** writes a 2–3 sentence rationale citing specific claim numbers.
-- **Critic** audits whether every awarded point is supported by a claim. If not, it sends the Scorer back with concrete feedback. Configurable retry limit; disabled by default to keep the call budget tight.
-
-For higher-confidence grading, set `GRADER_NUM_PASSES=5` in `.env`. The system will run the full graph 5 times per answer and aggregate median, max, and standard deviation. The review queue then sorts by std-dev DESC, surfacing the AI's most uncertain grades to TAs first.
 
 ---
 
-## Review dashboard shortcuts
-
-| Key | Action |
-|---|---|
-| `Enter` | Approve the AI's median score |
-| `O` | Open the override input |
-| `F` | Flag for further review |
-| `J` / `→` | Next item |
-| `K` / `←` | Previous item |
-| `Esc` (in override) | Cancel |
-| `Ctrl/⌘ + Enter` (in override) | Save override |
-
----
-
-## Configuration reference
-
-All settings live in `.env`. Key knobs:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `LLM_PROVIDER` | `google` | `google` or `anthropic` |
-| `GOOGLE_API_KEY` | — | Required for the default Google provider |
-| `GRADER_MODEL_GOOGLE` | `gemini-2.5-flash-lite` | Free-tier-friendly vision model |
-| `ANTHROPIC_API_KEY` | — | Required if `LLM_PROVIDER=anthropic` |
-| `GRADER_MODEL_ANTHROPIC` | `claude-sonnet-4-20250514` | |
-| `DATABASE_URL` | `sqlite:///./gradeops.db` | Swap to a Postgres URL when needed |
-| `OCR_BACKEND` | `hosted` | `hosted` (uses configured LLM) or `qwen_vl` (HuggingFace, needs GPU) |
-| `GRADER_NUM_PASSES` | `1` | Passes per answer; raise to 5 for variance-based review priority |
-| `GRADER_CRITIC_RETRY` | `0` | How many times the Critic may send the Scorer back |
-| `LLM_MIN_GAP_SECONDS` | `4.5` | Throttle between LLM calls; keeps free-tier RPM caps safe |
-| `PLAGIARISM_THRESHOLD` | `0.82` | Cosine similarity cutoff |
-
----
-
-## Schema (DB tables)
-
-```
-users               role: instructor | ta
-exams               
-rubrics             versioned (v1, v2, ...); immutable on update
-papers              one row per uploaded PDF
-crops               one row per cropped answer region
-gradings            one row per grading pass
-grading_aggregates  median / max / min / std-dev per crop
-reviews             every approve / override / flag
-plagiarism_flags    pairs of crops above similarity threshold
-audit_log           append-only; every row stamped with rubric_ver + prompt_ver + model_ver
-```
-
-Every grading and every review writes an audit row, stamped with the rubric, prompt, and model versions in effect at the time. The audit log is the source of truth for traceability.
-
----
-
-## Project layout
+## Project Structure
 
 ```
 gradeops/
 ├── backend/
-│   ├── main.py                    FastAPI app
-│   ├── config.py · db.py · schemas.py
-│   ├── audit.py · plagiarism.py
-│   ├── ingestion/                 PDF split · crop · anonymize
-│   ├── ocr/                       Hosted + Qwen-VL adapters + router
-│   └── grader/                    Langgraph state machine + rate limiter
+│   ├── main.py               FastAPI app
+│   ├── grader/
+│   │   ├── graph.py          Langgraph state machine
+│   │   ├── nodes.py          4 agent nodes
+│   │   ├── llm.py            Provider-agnostic LLM factory
+│   │   └── rate_limit.py     Global throttle (free-tier safe)
+│   ├── ingestion/            PDF splitting, cropping, anonymization
+│   └── ocr/                  Hosted vision + Qwen-VL adapters
 ├── frontend/
-│   ├── package.json · vite.config.js · tailwind.config.js
-│   └── src/
-│       ├── App.jsx · main.jsx · index.css · api.js
-│       ├── components/ui.jsx
-│       └── pages/{Rubrics,Grading,Review,Audit}.jsx
-├── scripts/
-│   ├── init_db.py
-│   ├── seed_demo.py
-│   └── run_demo.py
-├── storage/                       Local stand-in for cloud object store
-├── docker-compose.yml             Optional Postgres
-├── requirements.txt
-└── .env.example
+│   └── src/pages/
+│       ├── Rubrics.jsx       Rubric CRUD editor
+│       ├── Grading.jsx       Batch upload + progress
+│       ├── Review.jsx        Side-by-side TA dashboard
+│       └── Audit.jsx         Stats + decision log
+└── scripts/                  DB init, demo seeder, CLI runner
 ```
 
 ---
 
-## API reference
+## API Endpoints
 
-Quick tour. Full schema at `/docs` when the server is running.
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/health` | Liveness probe + active model |
-| GET | `/debug/env` | Diagnostic — what env vars actually loaded |
-| GET | `/users` | List instructor + TA accounts |
-| POST | `/exams` | Create an exam |
-| GET | `/exams` | List exams |
-| POST | `/rubrics` | Create a rubric (immutable; auto-versioned) |
-| GET | `/rubrics?exam_id={id}` | List rubrics for an exam |
-| POST | `/papers/upload` | Upload a PDF or image; runs the full pipeline |
-| GET | `/crops/{id}/image` | Fetch the anonymized crop image |
-| GET | `/review/queue` | Crops sorted by std-dev DESC, pending only |
-| POST | `/reviews` | Submit an approve / override / flag |
-| GET | `/audit` | Decision log |
-| GET | `/plagiarism` | Similarity pairs above threshold |
-| GET | `/stats` | Dashboard metrics |
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Provider + model + OCR backend status |
+| `GET /debug/env` | What `.env` actually loaded |
+| `GET /docs` | Full Swagger UI |
+| `POST /papers/upload` | Bulk PDF upload |
 
 ---
 
-## Out of scope for this build
+## Deployment (Hugging Face Spaces)
 
-- Real authentication / SSO — there is a role toggle in the header for RBAC demonstration
-- Background workers — the pipeline runs synchronously on upload
-- Cloud object storage — the local `storage/` folder is behind a path abstraction; S3 swap is a small change
-- Failure recovery, idempotency, retries beyond the Critic loop
+The app runs as a single Docker container on HF Spaces:
+- **16 GB RAM, 2 vCPU** — handles sentence-transformers without OOM
+- **No request timeout** — 60-second grading calls complete (Render free has a 30s cap)
+- FastAPI serves the built React frontend — single URL, no CORS issues
+- `GOOGLE_API_KEY` stored as an encrypted secret; never in code
 
-These are flagged in the architecture as the next things to add when moving to production.
+**Live at:** https://samruddhisadar-gradeops.hf.space  
+*(Sleeps after 48h inactivity — ~30s cold start on first request)*
+
+---
+
+## Known Limitations & Roadmap
+
+| Area | Current State | To Productionize |
+|------|--------------|-----------------|
+| RBAC | Modeled, not enforced | Add `Depends(require_role(...))` on routes |
+| Storage | Local `storage/` folder | Swap to S3 via boto3 (~15 lines) |
+| OCR | Hosted vision LLM | Switch to `OCR_BACKEND=qwen_vl` on GPU host |
+| Concurrency | Synchronous on upload | Move to `BackgroundTasks` or Celery |
+| Multi-pass | 1 pass (rate-limited) | Raise to 5 on paid tier |
+
+---
+
+## Brief Compliance
+
+| Requirement | Status |
+|-------------|--------|
+| Bulk PDF upload + rubric builder | ✅ |
+| RBAC (Instructors vs TAs) | ⚠️ Modeled, not enforced |
+| OCR / Vision models | ⚠️ Hosted default; Qwen-VL stub present |
+| Cloud storage | ⚠️ Local FS (abstracted, easy swap) |
+| Agentic partial credit grading | ✅ |
+| Structured justifications | ✅ |
+| Plagiarism flagging | ✅ |
+| Review dashboard + keyboard shortcuts | ✅ |
+
+---
+
+
