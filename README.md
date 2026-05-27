@@ -14,7 +14,7 @@ pinned: false
 
 [[Live Demo](https://samruddhisadar-gradeops.hf.space)]
 
-STACK - FastAPI, React, Langraph
+STACK - FastAPI, React, Langraph.
 DB - SQLite / PostgreSQL
 
 ---
