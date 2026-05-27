@@ -12,8 +12,10 @@ pinned: false
 > **Human-in-the-Loop AI grading pipeline for handwritten exams**
 
 
-[Live Demo](https://samruddhisadar-gradeops.hf.space)
+[[Live Demo](https://samruddhisadar-gradeops.hf.space)](https://github.com/samsadar236/gradeops/blob/main/README.md)
+
 STACK - FastAPI, React, Langraph
+
 DB - SQLite / PostgreSQL
 ---
 
