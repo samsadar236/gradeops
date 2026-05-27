@@ -1,8 +1,25 @@
 import axios from 'axios'
 
+// 1. Generate or retrieve a unique, invisible session ID for this browser
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('gradeops_session_id');
+  if (!sessionId) {
+    // Fallback included just in case crypto isn't supported
+    sessionId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : 'sess_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('gradeops_session_id', sessionId);
+  }
+  return sessionId;
+};
+
+// 2. Attach the Session ID to the Axios client headers
 const client = axios.create({
   baseURL: import.meta.env.DEV ? '/api' : '',
   timeout: 600_000,
+  headers: {
+    'X-Session-ID': getSessionId() 
+  }
 })
 
 export const api = {

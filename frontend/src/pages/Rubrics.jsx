@@ -76,6 +76,39 @@ export default function Rubrics() {
     setEditing({ _new: true, exam_id: examId, ...SAMPLE_RUBRIC })
   }
 
+  const deleteExam = async () => {
+    if (!examId) return;
+    
+    if (!window.confirm("Are you sure you want to delete this exam? This will delete all associated rubrics and cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/exams/${examId}`, { method: 'DELETE' });
+      
+      if (response.ok) {
+        // Find the index of the deleted exam
+        const deletedIndex = exams.findIndex(e => e.id === examId);
+        
+        // Remove it from local state
+        const updatedExams = exams.filter(e => e.id !== examId);
+        setExams(updatedExams);
+        
+        // Smarter UI selection
+        let nextExamId = null;
+        if (updatedExams.length > 0) {
+           nextExamId = updatedExams[Math.max(0, deletedIndex - 1)].id;
+        }
+        
+        await refresh(nextExamId);
+      } else {
+        alert("Failed to delete exam from backend. Check network tab.");
+      }
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+    }
+  };
+
   const save = async (r) => {
     const { _new, ...payload } = r
     await api.createRubric(payload)
@@ -94,7 +127,20 @@ export default function Rubrics() {
         description="Define grading criteria for each question. Criteria support alternatives and explicit do-not-deduct rules."
         actions={
           <>
-            <ExamPicker exams={exams} value={examId} onChange={(id) => refresh(id)} />
+            <div className="flex items-center gap-2 mr-4">
+              <ExamPicker exams={exams} value={examId} onChange={(id) => refresh(id)} />
+              {examId && (
+                <Button 
+                  variant="ghost" 
+                  onClick={deleteExam} 
+                  className="text-red-600 hover:bg-red-50 border border-red-200 px-3 h-9"
+                  title="Delete Exam"
+                >
+                   Delete
+                </Button>
+              )}
+            </div>
+            
             <Button onClick={createExam}>New exam</Button>
             <Button onClick={startSample}>Load sample</Button>
             <Button variant="primary" onClick={startBlank}>New rubric</Button>
@@ -293,8 +339,6 @@ function RubricEditor({ initial, onSave, onCancel }) {
 function CriterionRow({ index, criterion, showError, onChange, onRemove, canRemove }) {
   return (
     <div className="px-5 py-4">
-      {/* Top row: index + name + points + remove. Uses GRID with explicit
-          column widths so the name field cannot get visually squashed. */}
       <div className="grid items-center gap-3 mb-3"
            style={{ gridTemplateColumns: '32px minmax(0,1fr) 96px auto' }}>
         <span className="text-label-md font-medium text-ink-subtle">#{index + 1}</span>

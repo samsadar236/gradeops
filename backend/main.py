@@ -1,19 +1,19 @@
 """FastAPI application: the API surface for the React frontend.
 
-Routes:
-  /users        bootstrap instructor + TA users for RBAC
-  /exams        CRUD exams
-  /rubrics      CRUD rubrics (immutable; updates create new versions)
-  /papers       upload PDFs, kick off the full pipeline
-  /crops        list crops + image bytes
-  /review       review queue (sorted by std-dev DESC) + decision endpoint
-  /audit        immutable audit log
-  /plagiarism   pair list above threshold
-  /stats        override-rate dashboard metrics
-  /debug/env    diagnostic — what env vars actually loaded
-  /health       liveness probe
+Routes (now namespaced under /api):
+  /api/users        bootstrap instructor + TA users for RBAC
+  /api/exams        CRUD exams
+  /api/rubrics      CRUD rubrics (immutable; updates create new versions)
+  /api/papers       upload PDFs, kick off the full pipeline
+  /api/crops        list crops + image bytes
+  /api/review       review queue (sorted by std-dev DESC) + decision endpoint
+  /api/audit        immutable audit log
+  /api/plagiarism   pair list above threshold
+  /api/stats        override-rate dashboard metrics
+  /api/debug/env    diagnostic — what env vars actually loaded
+  /api/health       liveness probe
 
-Pipeline (kicked off on POST /papers/upload):
+Pipeline (kicked off on POST /api/papers/upload):
   PDF split → answer-region crop → anonymize →
     OCR transcribe → agentic grader 5x in parallel →
     aggregate → plagiarism worker over this exam
@@ -25,7 +25,8 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Form
+# IMPORT HEADER HERE
+from fastapi import FastAPI, Depends, File, UploadFile, HTTPException, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -75,7 +76,7 @@ def _startup():
 # ---------------------------------------------------------------------------
 # Health + diagnostics
 # ---------------------------------------------------------------------------
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {
         "status": "ok",
@@ -85,7 +86,7 @@ def health():
     }
 
 
-@app.get("/debug/env")
+@app.get("/api/debug/env")
 def debug_env():
     """Diagnostic — shows exactly what the backend loaded.
     Remove or restrict by role in production."""
@@ -108,7 +109,7 @@ def debug_env():
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
-@app.get("/users")
+@app.get("/api/users")
 def list_users(db: Session = Depends(get_db)):
     return [{"id": u.id, "email": u.email, "name": u.name, "role": u.role}
             for u in db.query(User).all()]
@@ -117,24 +118,49 @@ def list_users(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Exams
 # ---------------------------------------------------------------------------
-@app.post("/exams", response_model=schemas.ExamOut)
-def create_exam(payload: schemas.ExamCreate, db: Session = Depends(get_db)):
-    e = Exam(title=payload.title)
+@app.post("/api/exams", response_model=schemas.ExamOut)
+def create_exam(
+    payload: schemas.ExamCreate, 
+    x_session_id: str = Header(default="public"), # Read the session header
+    db: Session = Depends(get_db)
+):
+    # Save the exam tied specifically to this user's session
+    e = Exam(title=payload.title, session_id=x_session_id)
     db.add(e)
     db.commit()
     db.refresh(e)
     return e
 
 
-@app.get("/exams", response_model=list[schemas.ExamOut])
-def list_exams(db: Session = Depends(get_db)):
-    return db.query(Exam).order_by(Exam.created_at.desc()).all()
+@app.get("/api/exams", response_model=list[schemas.ExamOut])
+def list_exams(
+    x_session_id: str = Header(default="public"), # Read the session header
+    db: Session = Depends(get_db)
+):
+    # ONLY return exams that match the visitor's unique session ID
+    return db.query(Exam).filter(Exam.session_id == x_session_id).order_by(Exam.created_at.desc()).all()
+
+
+@app.delete("/api/exams/{exam_id}", status_code=204)
+def delete_exam(exam_id: int, db: Session = Depends(get_db)):
+    # 1. Find the exam in the database
+    exam = db.get(Exam, exam_id)
+    if not exam:
+        raise HTTPException(404, "Exam not found")
+
+    # 2. Delete the exam 
+    # (Assuming SQLAlchemy ondelete="CASCADE" is set up in your db.py models, 
+    # this will automatically wipe associated rubrics and papers)
+    db.delete(exam)
+    db.commit()
+    
+    return
 
 
 # ---------------------------------------------------------------------------
 # Rubrics (immutable, versioned per exam)
 # ---------------------------------------------------------------------------
-@app.post("/rubrics", response_model=schemas.RubricOut)
+@app.post("/api/rubrics", response_model=schemas.RubricOut)
 def create_rubric(payload: schemas.RubricCreate, db: Session = Depends(get_db)):
     exam = db.get(Exam, payload.exam_id)
     if exam is None:
@@ -162,7 +188,7 @@ def create_rubric(payload: schemas.RubricCreate, db: Session = Depends(get_db)):
     return _rubric_to_out(r)
 
 
-@app.get("/rubrics", response_model=list[schemas.RubricOut])
+@app.get("/api/rubrics", response_model=list[schemas.RubricOut])
 def list_rubrics(exam_id: int | None = None, db: Session = Depends(get_db)):
     q = db.query(Rubric)
     if exam_id is not None:
@@ -170,7 +196,7 @@ def list_rubrics(exam_id: int | None = None, db: Session = Depends(get_db)):
     return [_rubric_to_out(r) for r in q.order_by(Rubric.created_at.desc()).all()]
 
 
-@app.get("/rubrics/{rubric_id}", response_model=schemas.RubricOut)
+@app.get("/api/rubrics/{rubric_id}", response_model=schemas.RubricOut)
 def get_rubric(rubric_id: int, db: Session = Depends(get_db)):
     r = db.get(Rubric, rubric_id)
     if r is None:
@@ -191,7 +217,7 @@ def _rubric_to_out(r: Rubric) -> schemas.RubricOut:
 # ---------------------------------------------------------------------------
 # Papers — upload + run pipeline
 # ---------------------------------------------------------------------------
-@app.post("/papers/upload")
+@app.post("/api/papers/upload")
 def upload_papers(
     exam_id: int = Form(...),
     rubric_id: int = Form(...),
@@ -335,7 +361,7 @@ def _refresh_plagiarism(db: Session, exam_id: int) -> None:
             db.add(PlagiarismFlag(crop_a_id=a, crop_b_id=b, similarity=s))
     db.commit()
 
-@app.delete("/papers/{paper_id}", status_code=204)
+@app.delete("/api/papers/{paper_id}", status_code=204)
 def delete_paper(paper_id: int, db: Session = Depends(get_db)):
     # 1. Find the paper
     paper = db.get(Paper, paper_id)
@@ -366,7 +392,7 @@ def delete_paper(paper_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Crops + images
 # ---------------------------------------------------------------------------
-@app.get("/crops/{crop_id}/image")
+@app.get("/api/crops/{crop_id}/image")
 def get_crop_image(crop_id: int, db: Session = Depends(get_db)):
     crop = db.get(Crop, crop_id)
     if crop is None:
@@ -380,7 +406,7 @@ def get_crop_image(crop_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Review queue
 # ---------------------------------------------------------------------------
-@app.get("/review/queue", response_model=list[schemas.ReviewQueueItem])
+@app.get("/api/review/queue", response_model=list[schemas.ReviewQueueItem])
 def review_queue(
     exam_id: int | None = None,
     only_pending: bool = True,
@@ -418,7 +444,7 @@ def review_queue(
             db.query(PlagiarismFlag)
             .filter((PlagiarismFlag.crop_a_id == crop.id) | (PlagiarismFlag.crop_b_id == crop.id))
             .first()
-            is not None
+            .is not None
         )
 
         items.append(schemas.ReviewQueueItem(
@@ -428,7 +454,7 @@ def review_queue(
             question_id=crop.question_id,
             rubric_id=rubric.id,
             rubric_title=rubric.title,
-            image_path=f"/crops/{crop.id}/image",
+            image_path=f"/api/crops/{crop.id}/image",
             aggregate=schemas.AggregateOut(
                 crop_id=crop.id,
                 median=agg.median,
@@ -445,7 +471,7 @@ def review_queue(
     return items
 
 
-@app.post("/reviews", response_model=schemas.ReviewOut)
+@app.post("/api/reviews", response_model=schemas.ReviewOut)
 def submit_review(payload: schemas.ReviewCreate, db: Session = Depends(get_db)):
     crop = db.get(Crop, payload.crop_id)
     if crop is None:
@@ -481,12 +507,12 @@ def submit_review(payload: schemas.ReviewCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Audit + plagiarism views
 # ---------------------------------------------------------------------------
-@app.get("/audit", response_model=list[schemas.AuditEntry])
+@app.get("/api/audit", response_model=list[schemas.AuditEntry])
 def list_audit(limit: int = 200, db: Session = Depends(get_db)):
     return db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
 
 
-@app.get("/plagiarism", response_model=list[schemas.PlagiarismPair])
+@app.get("/api/plagiarism", response_model=list[schemas.PlagiarismPair])
 def list_plagiarism(db: Session = Depends(get_db)):
     return db.query(PlagiarismFlag).order_by(PlagiarismFlag.similarity.desc()).all()
 
@@ -494,7 +520,7 @@ def list_plagiarism(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Stats — surfaces the metrics dashboard
 # ---------------------------------------------------------------------------
-@app.get("/stats")
+@app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db)):
     total_crops = db.query(Crop).count()
     total_reviewed = db.query(Review).count()
