@@ -13,9 +13,8 @@ pinned: false
 
 
 [Live Demo](https://samruddhisadar-gradeops.hf.space)
-[![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Langgraph-indigo)]()
-[![DB](https://img.shields.io/badge/DB-SQLite%20%2F%20PostgreSQL-green)]()
-
+STACK - FastAPI, React, Langraph
+DB - SQLite / PostgreSQL
 ---
 
 ## What is GradeOps?
