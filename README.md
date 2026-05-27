@@ -12,7 +12,7 @@ pinned: false
 > **Human-in-the-Loop AI grading pipeline for handwritten exams**
 
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-HuggingFace%20Spaces-blue)](https://samruddhisadar-gradeops.hf.space)
+[Live Demo](https://samruddhisadar-gradeops.hf.space)
 [![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20React%20%7C%20Langgraph-indigo)]()
 [![DB](https://img.shields.io/badge/DB-SQLite%20%2F%20PostgreSQL-green)]()
 
