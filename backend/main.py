@@ -335,6 +335,33 @@ def _refresh_plagiarism(db: Session, exam_id: int) -> None:
             db.add(PlagiarismFlag(crop_a_id=a, crop_b_id=b, similarity=s))
     db.commit()
 
+@app.delete("/papers/{paper_id}", status_code=204)
+def delete_paper(paper_id: int, db: Session = Depends(get_db)):
+    # 1. Find the paper
+    paper = db.get(Paper, paper_id)
+    if not paper:
+        raise HTTPException(404, "paper not found")
+
+    # 2. Delete the physical files to save storage
+    storage = settings.storage_path
+    for sub in ("pages", "crops"):
+        dir_path = storage / sub / str(paper_id)
+        if dir_path.is_dir():
+            shutil.rmtree(dir_path, ignore_errors=True)
+            
+    # Also delete the original PDF using the saved path
+    if paper.source_pdf_path:
+        pdf_path = Path(paper.source_pdf_path)
+        if pdf_path.is_file():
+            pdf_path.unlink(missing_ok=True)
+
+    # 3. Delete from the database
+    # (Relies on ondelete="CASCADE" in your DB models)
+    db.delete(paper)
+    db.commit()
+    
+    return
+
 
 # ---------------------------------------------------------------------------
 # Crops + images

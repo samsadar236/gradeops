@@ -60,6 +60,21 @@ export default function Grading() {
     setFiles([])
   }
 
+const handleDelete = async (paperId) => {
+    if (!window.confirm('Delete this exam and all its grades? This cannot be undone.')) return;
+    try {
+      // Note: If you don't have api.delete in your api.js, you can use standard fetch:
+      // await fetch(`http://localhost:8000/papers/${paperId}`, { method: 'DELETE' })
+      // Or if your API object has an axios instance, adjust accordingly.
+      await api.deletePaper ? await api.deletePaper(paperId) : await fetch(`/papers/${paperId}`, { method: 'DELETE' });
+      
+      // Remove it from the batch UI so you know it's gone
+      setBatch((prevBatch) => prevBatch.filter((item) => item.paperId !== paperId));
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Failed to delete the paper.');
+    }
+  };
+
   const rubric = rubrics.find(r => r.id === rubricId)
   const anyDone = batch.some(b => b.status === 'done')
 
@@ -133,7 +148,7 @@ export default function Grading() {
             <Card>
               <CardHeader title="Batch progress" />
               <div className="divide-y divide-border">
-                {batch.map(item => <BatchRow key={item.id} item={item} />)}
+                {batch.map(item => <BatchRow key={item.id} item={item} onDelete={handleDelete} />)}
               </div>
             </Card>
           )}
@@ -149,7 +164,7 @@ export default function Grading() {
   )
 }
 
-function BatchRow({ item }) {
+function BatchRow({ item, onDelete }) {
   return (
     <div className="flex items-center gap-3 px-5 py-3">
       <span className="flex-1 text-body-sm text-ink truncate">{item.name}</span>
@@ -159,11 +174,18 @@ function BatchRow({ item }) {
         <>
           <Badge variant="success">✓ {item.cropIds?.length || 0} answer{item.cropIds?.length === 1 ? '' : 's'}</Badge>
           <span className="text-label-sm text-ink-subtle">{item.anonId}</span>
+          
+          <button
+            onClick={() => onDelete(item.paperId)}
+            className="text-sm font-medium text-red-600 hover:text-red-800 transition-colors px-2 py-1 border border-transparent hover:border-red-200 rounded-md"
+          >
+            Delete
+          </button>
         </>
       )}
       {item.status === 'failed'  && (
         <Badge variant="danger" title={item.error}>Failed</Badge>
       )}
-    </div>
+    </div> 
   )
 }
