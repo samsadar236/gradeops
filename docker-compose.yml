@@ -1,0 +1,23 @@
+version: "3.9"
+
+# Optional: Postgres for the brief's tech-stack alignment.
+# The app works with SQLite by default (DATABASE_URL=sqlite:///./gradeops.db).
+# To use Postgres:
+#   docker compose up -d db
+#   set DATABASE_URL=postgresql+psycopg2://gradeops:gradeops@localhost:5432/gradeops in .env
+#   python scripts/init_db.py
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gradeops
+      POSTGRES_PASSWORD: gradeops
+      POSTGRES_DB: gradeops
+    ports:
+      - "5432:5432"
+    volumes:
+      - gradeops_pgdata:/var/lib/postgresql/data
+
+volumes:
+  gradeops_pgdata:
