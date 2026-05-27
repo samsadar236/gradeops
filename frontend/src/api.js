@@ -15,7 +15,7 @@ const getSessionId = () => {
 
 // 2. Attach the Session ID to the Axios client headers
 const client = axios.create({
-  baseURL: import.meta.env.DEV ? '/api' : '',
+  baseURL: '/api', // <--- FIXED: Now ALWAYS uses /api for every environment
   timeout: 600_000,
   headers: {
     'X-Session-ID': getSessionId() 
